@@ -1,0 +1,121 @@
+#!/usr/bin/env node
+
+var USAGE = 'USAGE: npm <start|stop>';
+
+if(process.argv.length < 3) {
+    console.error('No startup arguments provided');
+    console.error(USAGE);
+    process.exit(1);
+}
+
+/**
+ * Module dependencies.
+ */
+
+var fs = require('fs');
+var child_process = require('child_process');
+
+if(process.argv[2] === 'start') {
+    // Make sure server isn't already running
+    fs.access('node.pid', fs.F_OK, function(err) {
+        if(!err) {
+            console.log('Server is already running:\n');
+            fs.readFile('node.pid', 'utf8', function(readErr, data) {
+                if(readErr) {
+                    process.exit();
+                }
+
+                if(data) {
+                    var psCmd = child_process.spawn('ps', ['u', '-p', data.trim()], {
+                        stdio: [
+                            'inherit', // inherit STDIN
+                            'inherit', // inherit STDOUT
+                            'inherit'  // inherit STDERR
+                        ]
+                    });
+                    psCmd.on('exit', process.exit);
+                }
+            });
+
+        } else {
+            // Server is not running
+            // Make sure the logs directory exists
+            fs.stat('logs', function(statErr, stats) {
+                if(statErr) {
+                    // Directory doesn't exist
+                    fs.mkdir('logs', function() {
+                        console.log('Created logs directory');
+                        startDaemon();
+                    });
+
+                } else {
+                    if(stats.isDirectory()) {
+                        startDaemon();
+
+                    } else {
+                        console.error('\'logs\' exists but is not a directory');
+                        console.error('Unable to start server');
+                        process.exit(1);
+                    }
+                }
+            });
+        }
+    });
+
+} else if(process.argv[2] === 'stop') {
+    fs.access('node.pid', fs.F_OK, function(err) {
+        if(err) {
+            console.log('Server does not appear to be running');
+            process.exit();
+        }
+
+        fs.readFile('node.pid', 'utf8', function(readErr, data) {
+            if(readErr) {
+                console.error('Problems reading node.pid:');
+                console.error(readErr);
+                process.exit(1);
+            }
+
+            console.log('Stopping server...');
+
+            var killCmd = child_process.spawn('kill', ['-15', data.trim()]);
+            killCmd.on('error', function(killErr) {
+                console.error('Problem killing running server process:');
+                console.error(err);
+            });
+            killCmd.on('exit', function(code, signal) {
+                if(code === 0) {
+                    console.log('Server stopped successfully');
+                } else {
+                    console.error('Unable to stop server (${code})');
+                    if(signal) {
+                        console.error('(caused by ${signal})');
+                    }
+
+                    process.exit(1);
+                }
+            });
+        });
+    });
+
+} else {
+    console.error('Unrecognized startup argument: ' + process.argv[2]);
+    console.error(USAGE);
+    process.exit(1);
+}
+
+function startDaemon() {
+    var daemon = child_process.spawn('node', ['bin/www'], {
+        detached: true,
+        stdio: [
+            'ignore',                          // ignore STDIN
+            fs.openSync('logs/node.log', 'a'), // send STDOUT to logs/node.log
+            fs.openSync('logs/node.err', 'a')  // send STDERR to logs/node.err
+        ]
+    });
+
+    daemon.unref();
+
+    console.log('Server daemon started, run \'ps u -p `cat node.pid`\' to see the daemon process');
+    process.exit();
+}
