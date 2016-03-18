@@ -105,7 +105,7 @@ if(process.argv[2] === 'start') {
 }
 
 function startDaemon() {
-    var daemon = child_process.spawn('node', ['bin/www'], {
+    var daemon = child_process.spawn('node', ['bin/www', process.env.npm_package_name], {
         detached: true,
         stdio: [
             'ignore',                          // ignore STDIN
