@@ -1,11 +1,27 @@
 <!DOCTYPE html>
-<html>
+<html ng-app="PsychicDisco">
   <head>
     <title><%= title %></title>
-    <link rel='stylesheet' href='/stylesheets/style.css' />
+    <link rel="stylesheet" href="/stylesheets/style.css" />
+    <link rel="stylesheet" href="/bower_components/bootstrap/dist/css/bootstrap.min.css" />
+
+    <script src="/bower_components/angular/angular.min.js"></script>
+
+    <script src="javascripts/main.controller.js"></script>
+    <script src="javascripts/nav.controller.js"></script>
+
+    <script src="/javascripts/app.module.js"></script>
   </head>
   <body>
-    <h1><%= title %></h1>
-    <p>Welcome to <%= title %></p>
+    <nav class="navbar navbar-default" ng-controller="NavController">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="#">psychic-disco</a>
+      </div>
+    </nav>
+
+    <div ng-controller="MainController">
+      <h1>{{title}}</h1>
+      <p>Welcome to {{title}}</p>
+    </div>
   </body>
 </html>

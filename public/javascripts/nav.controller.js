@@ -1,0 +1,2 @@
+var NavController = function($scope) {
+};
