@@ -25,6 +25,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/bower_components', express.static(path.join(__dirname, 'bower_components')));
 
 app.use('/', routes);
 app.use('/users', users);
@@ -32,7 +33,7 @@ app.use('/users', users);
 // TODO: Move later
 app.db = new sqlite3.Database('db/test.db');
 app.db.serialize(function() {
-    app.db.run('CREATE TABLE test (info TEXT)');
+    app.db.run('CREATE TABLE IF NOT EXISTS test (info TEXT)');
 });
 app.db.close();
 
