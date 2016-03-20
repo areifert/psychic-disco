@@ -7,6 +7,8 @@
 
     <script src="/bower_components/angular/angular.min.js"></script>
 
+    <script src="javascripts/ws.service.js"></script>
+
     <script src="javascripts/main.controller.js"></script>
     <script src="javascripts/nav.controller.js"></script>
 
@@ -22,6 +24,8 @@
     <div ng-controller="MainController">
       <h1>{{title}}</h1>
       <p>Welcome to {{title}}</p>
+
+      <button type="button" class="btn btn-default" ng-click="sendTestMsg()">Send test WS message</button>
     </div>
   </body>
 </html>
