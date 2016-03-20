@@ -111,6 +111,8 @@ function getGmailCredentials(ignoreAuthFile) {
     // Check for a .gmail.auth file; if it exists, use that
     fs.stat('.gmail.auth', function(statErr, stats) {
         if(!statErr && stats.isFile() && !ignoreAuthFile) {
+            console.log('.gmail.auth file found');
+
             var gmailCreds = fs.readFileSync('.gmail.auth');
             sendServerStartEmail(gmailCreds, function(succeeded) {
                 if(succeeded) {
@@ -199,8 +201,8 @@ function sendServerStartEmail(creds, cb) {
     var mailOptions = {
         from: process.env.npm_package_name + ' <startup@node.local>',
         to: String(creds).split(':')[0],
-        subject: 'Server successfully started',
-        html: '<h1>' + process.env.npm_package_name + '</h1><p>Server has been successfully started, and email has been successfully authenticated</p>'
+        subject: 'Server starting, email verified',
+        html: '<h1>' + process.env.npm_package_name + '</h1><p>Server starting, email has been successfully authenticated</p>'
     };
 
     transporter.sendMail(mailOptions, function(sendErr, info) {
@@ -211,6 +213,7 @@ function sendServerStartEmail(creds, cb) {
             cb(false);
 
         } else {
+            console.log('Credentials verified, server start email successfully sent');
             cb(true);
         }
     });
