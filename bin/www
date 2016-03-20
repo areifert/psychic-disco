@@ -18,6 +18,8 @@ var http = require('http');
 var nodemailer = require('nodemailer');
 var os = require('os');
 
+var WebSocketServer = require('ws').Server;
+
 // Set process title (masks the email/password inputs)
 process.title = 'node [' + process.env.npm_package_name + ']';
 
@@ -47,6 +49,42 @@ var server = http.createServer(app);
 server.listen(port);
 server.on('error', onError);
 server.on('listening', onListening);
+
+// Register app message handlers
+app.msgHandlers = require('../wsMsgHandlers');
+
+// Create a WebSocket server
+app.wss = new WebSocketServer({server: server});
+
+app.wss.on('connection', function(ws) {
+    console.log('New WebSocket connection established');
+
+    ws.on('message', function(msg) {
+        // Note: expecting all messages to be JSON-formatted
+        var msgObj = JSON.parse(msg);
+
+        if(msgObj.type) {
+            // If a message handler for this message type exists
+            if(app.msgHandlers[msg.type]) {
+                app.msgHandlers[msg.type](msg, ws);
+
+            // Otherwise, use the default handler
+            } else {
+                app.msgHandlers.DefaultHandler(msg, ws);
+            }
+
+        } else {
+            console.log('Unable to process message, no type specified:');
+            console.log(msg);
+        }
+    });
+});
+
+app.wss.broadcast = function(msg) {
+    app.wss.clients.forEach(function(client) {
+        client.send(msg);
+    });
+};
 
 console.log('Server started, listening at http://' + [os.hostname(), port].join(':'));
 
