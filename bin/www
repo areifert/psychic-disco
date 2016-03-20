@@ -1,5 +1,13 @@
 #!/usr/bin/env node
 
+// Verify that email and password were passed as arguments
+// Process call should be:
+// node ./bin/www <email:password>
+if(process.argv.length < 3) {
+    console.error('Not enough arguments to start (expecting email:password string)');
+    process.exit(1);
+}
+
 /**
  * Module dependencies.
  */
@@ -7,9 +15,10 @@
 var app = require('../app');
 var debug = require('debug')('psychic-disco:server');
 var http = require('http');
+var nodemailer = require('nodemailer');
 var os = require('os');
 
-// Set process title
+// Set process title (masks the email/password inputs)
 process.title = 'node [' + process.env.npm_package_name + ']';
 
 /**
@@ -18,6 +27,12 @@ process.title = 'node [' + process.env.npm_package_name + ']';
 
 var port = normalizePort(process.env.PORT || '3000');
 app.set('port', port);
+
+// Set up email transport
+app.email = {
+    transport: nodemailer.createTransport('smtps://' + process.argv[2] + '@smtp.gmail.com')
+};
+
 
 /**
  * Create HTTP server.

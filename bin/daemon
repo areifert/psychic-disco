@@ -14,6 +14,9 @@ if(process.argv.length < 3) {
 
 var fs = require('fs');
 var child_process = require('child_process');
+var path = require('path');
+var Prompt = require('prompt');
+var nodemailer = require('nodemailer');
 
 if(process.argv[2] === 'start') {
     // Make sure server isn't already running
@@ -45,12 +48,12 @@ if(process.argv[2] === 'start') {
                     // Directory doesn't exist
                     fs.mkdir('logs', function() {
                         console.log('Created logs directory');
-                        startDaemon();
+                        getGmailCredentials();
                     });
 
                 } else {
                     if(stats.isDirectory()) {
-                        startDaemon();
+                        getGmailCredentials();
 
                     } else {
                         console.error('\'logs\' exists but is not a directory');
@@ -104,8 +107,117 @@ if(process.argv[2] === 'start') {
     process.exit(1);
 }
 
-function startDaemon() {
-    var daemon = child_process.spawn('node', ['bin/www', process.env.npm_package_name], {
+function getGmailCredentials(ignoreAuthFile) {
+    // Check for a .gmail.auth file; if it exists, use that
+    fs.stat('.gmail.auth', function(statErr, stats) {
+        if(!statErr && stats.isFile() && !ignoreAuthFile) {
+            var gmailCreds = fs.readFileSync('.gmail.auth');
+            sendServerStartEmail(gmailCreds, function(succeeded) {
+                if(succeeded) {
+                    startDaemon(gmailCreds);
+
+                } else {
+                    Prompt.start();
+
+                    console.log('Credentials stored in .gmail.auth file are not valid. Can this file be deleted? [y/N]');
+                    Prompt.get(['response'], function(err, result) {
+                        if(err) {
+                            console.error(err);
+
+                        } else {
+                            if(/^y(es)?/i.test(result.response)) {
+                                fs.unlinkSync('.gmail.auth');
+                                console.log('.gmail.auth deleted');
+                            }
+
+                            // Start over
+                            getGmailCredentials(true);
+                        }
+                    });
+                }
+            });
+
+        } else {
+            // Prompt for credentials
+            Prompt.start();
+
+            var promptOptions = {
+                properties: {
+                    email: {
+                        pattern: /@gmail\.com$/,
+                        message: 'Only supports Gmail right now',
+                        required: true
+                    },
+                    password: {
+                        hidden: true,
+                        required: true
+                    }
+                }
+            };
+
+            console.log('Note: only Gmail addresses are supported at this time.\n\nIf your Gmail account has 2-factor authentication enabled, generate an application-specific token and use that as the password\n\nSee https://security.google.com/settings/security/apppasswords');
+
+            Prompt.get(promptOptions, function(err, result) {
+                if(err) {
+                    console.error(err);
+
+                } else {
+                    sendServerStartEmail([result.email, result.password].join(':'), function(succeeded) {
+                        if(succeeded) {
+                            // Offer to cache credentials (in .gmail.auth)
+                            console.log('Save credentials (will be used automatically at server startup in the future)? [y/N]');
+                            Prompt.get(['response'], function(responseErr, response) {
+                                if(responseErr) {
+                                    console.error(responseErr);
+
+                                } else {
+                                    if(/^y(es)?/i.test(response.response)) {
+                                        // Save the file
+                                        fs.writeFileSync(path.join(__dirname, '..', '.gmail.auth'), [result.email, result.password].join(':'), {flag: 'wx'});
+
+                                        console.log('Saving credentials');
+                                    }
+
+                                    startDaemon([result.email, result.password].join(':'));
+                                }
+                            });
+
+                        } else {
+                            // Start over
+                            getGmailCredentials();
+                        }
+                    });
+                }
+            });
+        }
+    });
+}
+
+function sendServerStartEmail(creds, cb) {
+    var transporter = nodemailer.createTransport('smtps://' + creds + '@smtp.gmail.com');
+
+    var mailOptions = {
+        from: process.env.npm_package_name + ' <startup@node.local>',
+        to: String(creds).split(':')[0],
+        subject: 'Server successfully started',
+        html: '<h1>' + process.env.npm_package_name + '</h1><p>Server has been successfully started, and email has been successfully authenticated</p>'
+    };
+
+    transporter.sendMail(mailOptions, function(sendErr, info) {
+        if(sendErr) {
+            console.error('Error sending server start email:');
+            console.error(sendErr);
+
+            cb(false);
+
+        } else {
+            cb(true);
+        }
+    });
+}
+
+function startDaemon(emailAuth) {
+    var daemon = child_process.spawn('node', ['bin/www', emailAuth], {
         detached: true,
         stdio: [
             'ignore',                          // ignore STDIN
