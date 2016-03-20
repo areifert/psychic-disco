@@ -65,12 +65,12 @@ app.wss.on('connection', function(ws) {
 
         if(msgObj.type) {
             // If a message handler for this message type exists
-            if(app.msgHandlers[msg.type]) {
-                app.msgHandlers[msg.type](msg, ws);
+            if(app.msgHandlers[msgObj.type]) {
+                app.msgHandlers[msgObj.type](msgObj, ws);
 
             // Otherwise, use the default handler
             } else {
-                app.msgHandlers.DefaultHandler(msg, ws);
+                app.msgHandlers.DefaultHandler(msgObj, ws);
             }
 
         } else {
